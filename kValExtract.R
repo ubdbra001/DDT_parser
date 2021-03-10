@@ -1,24 +1,21 @@
 kValExtract <- function(data_in){
   
-  end_practice <- filter(data_in, display == "Go on trials")$Event_Index
-  
   # Extract only responses and remove practice trials
   data_in %>%
-    filter(Zone_Name == "Zone4" | Zone_Name == "Zone5") %>%
-    filter(Event_Index > end_practice) ->
+    filter(display == "Trial") ->
     data_responses
   
   # Calculate proportion of check trials "correctly" answered
   data_responses %>%
-    filter(Spreadsheet_Row == 28 | Spreadsheet_Row == 42) %>%
+    filter(!check) %>%
     # Set to NA if there are more than 2 trials
     summarise(ID = unique(Participant_Private_ID),
-              checks_prop = if_else(n()>2, NA_real_, mean(LDR))) ->
+              checks_prop = if_else(n()>1, NA_real_, mean(LDR))) ->
     data_checks
   
   # Calculate the number of missing trials
   data_responses %>%
-    filter(Spreadsheet_Row != 28 & Spreadsheet_Row != 42) %>%
+    filter(check) %>%
     summarise(ID = unique(Participant_Private_ID),
               missing_trials = sum(is.na(Response))) ->
     data_missing
@@ -26,7 +23,7 @@ kValExtract <- function(data_in){
   # Prep data for IDing k-value
   data_responses %>%
     drop_na(Response) %>%
-    filter(Spreadsheet_Row != 28 & Spreadsheet_Row != 42) %>%
+    filter(check) %>%
     arrange(k) %>%
     mutate(lagged_k = lag(k)) %>%
     rowwise() %>%
