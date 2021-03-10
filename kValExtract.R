@@ -1,21 +1,15 @@
+geo.mean <- psych::geometric.mean
+
+
 kValExtract <- function(data_in){
   
   # Extract only responses and remove practice trials
   data_in %>%
-    filter(display == "Trial") ->
+    filter(display == "Trial", check) ->
     data_responses
-  
-  # Calculate proportion of check trials "correctly" answered
-  data_responses %>%
-    filter(!check) %>%
-    # Set to NA if there are more than 2 trials
-    summarise(ID = unique(Participant_Private_ID),
-              checks_prop = if_else(n()>1, NA_real_, mean(LDR))) ->
-    data_checks
   
   # Calculate the number of missing trials
   data_responses %>%
-    filter(check) %>%
     summarise(ID = unique(Participant_Private_ID),
               missing_trials = sum(is.na(Response))) ->
     data_missing
@@ -23,11 +17,10 @@ kValExtract <- function(data_in){
   # Prep data for IDing k-value
   data_responses %>%
     drop_na(Response) %>%
-    filter(check) %>%
     arrange(k) %>%
     mutate(lagged_k = lag(k)) %>%
     rowwise() %>%
-    mutate(adj_k = geometric.mean(c(k, lagged_k))) %>%
+    mutate(adj_k = geo.mean(c(k, lagged_k))) %>%
     mutate(consistency = NA_integer_) %>%
     ungroup () ->
     prep_data
@@ -49,6 +42,11 @@ kValExtract <- function(data_in){
     }
     
     prep_data %>%
+      summarise(ID = unique(Participant_Private_ID),
+                LDR_prop = mean(LDR)) ->
+      LDR_Data
+    
+    prep_data %>%
       # Find highest consistency k-values
       filter(consistency == max(consistency)) %>%
       # Summarise to show:
@@ -56,11 +54,11 @@ kValExtract <- function(data_in){
       # Proportion for consistency
       # Total number of trials included
       summarise(ID = unique(Participant_Private_ID),
-                k = geometric.mean(adj_k),
+                k = geo.mean(adj_k),
                 consistency = max(consistency)/n_rows,
                 included_trials = n_rows) %>%
       # Join all the data frames into a single output
-      left_join(data_checks) %>%
+      left_join(LDR_Data) %>%
       left_join(data_missing) ->
       indv_out
   } else {
@@ -69,6 +67,7 @@ kValExtract <- function(data_in){
       left_join(data_checks) %>%
       bind_cols(tibble(k = NA,
                        consistency = NA,
+                       LDR_prop = NA,
                        included_trials = 0)) ->
       indv_out
   }

@@ -1,5 +1,4 @@
 library(tidyverse)
-library(psych)
 
 source("kValExtract.R")
 
@@ -36,8 +35,8 @@ DDT_data %>%
          k = ((A/V)-1)/D,
          HighVal = if_else(A==Value1, Value1, Value2),
          LDR = if_else(ResponseVal == HighVal, 1, 0),
-         check = (Value1 >= Value2 && Time1 > Time2) ||
-                 (Value1 <= Value2 && Time1 < Time2)) %>%
+         check = (Value1 > Value2 && Time1 > Time2) ||
+                 (Value1 < Value2 && Time1 < Time2)) %>%
   ungroup() %>%
   # Split the data up by participant ID for further processing
   group_split(Participant_Private_ID) ->
